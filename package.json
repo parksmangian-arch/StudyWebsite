@@ -1,0 +1,24 @@
+{
+  "name": "study-space",
+  "version": "1.0.0",
+  "description": "Minimalist Dark Aesthetic Study Workspace with Subjects, Lessons & Assignments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "study",
+    "minimalist",
+    "dark-mode",
+    "assignments",
+    "lessons",
+    "education"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "mammoth": "^1.13.0",
+    "pdf-parse": "^2.4.5"
+  }
+}

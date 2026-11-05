@@ -1,0 +1,215 @@
+{
+  "subjects": [
+    {
+      "id": "sub_1793860316957",
+      "name": "Gen Sci",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T06:31:56.957Z",
+      "lessons": [
+        {
+          "id": "les_1793860831281",
+          "title": "Green ICT",
+          "summary": "",
+          "content": "<h2>What is Green ICT?</h2><p>Green ICT refers to environmentally sustainable computing and information technology practices.</p>",
+          "status": "In Progress",
+          "createdAt": "2026-11-05T06:40:31.281Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793862189991",
+      "name": "Gen Math",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T07:03:09.991Z",
+      "lessons": []
+    },
+    {
+      "id": "sub_1793863969656",
+      "name": "EmpTech",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T07:32:49.656Z",
+      "lessons": [
+        {
+          "id": "les_1793863977927",
+          "title": "Green ICT",
+          "summary": "",
+          "content": "",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T07:32:57.927Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793864939962",
+      "name": "Gen math",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T07:48:59.962Z",
+      "lessons": []
+    },
+    {
+      "id": "sub_1793864945156",
+      "name": "Gen Sci",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T07:49:05.156Z",
+      "lessons": []
+    },
+    {
+      "id": "sub_1793864951809",
+      "name": "Eff Com",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T07:49:11.809Z",
+      "lessons": []
+    },
+    {
+      "id": "sub_1793870088462",
+      "name": "Gen sci",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:14:48.462Z",
+      "lessons": [
+        {
+          "id": "les_1793870101029",
+          "title": "Gte",
+          "summary": "",
+          "content": "",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:15:01.029Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793870334652",
+      "name": "po",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:18:54.652Z",
+      "lessons": [
+        {
+          "id": "les_1793870338119",
+          "title": ";",
+          "summary": "",
+          "content": "<br>",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:18:58.119Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793870722501",
+      "name": "Gen Sci",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:25:22.501Z",
+      "lessons": [
+        {
+          "id": "les_1793870730702",
+          "title": "Nothing Yet",
+          "summary": "",
+          "content": "<p><img src=\"/uploads/pic_1793870850721_ya0rn.png\" alt=\"pic_1793870849255_cr1a3.png\" loading=\"lazy\"></p><p><br></p><p><br></p><p><br></p><p>Eoa</p>",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:25:30.702Z"
+        },
+        {
+          "id": "les_1793870738456",
+          "title": "Placeholder",
+          "summary": "",
+          "content": "Boiii",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:25:38.456Z"
+        },
+        {
+          "id": "les_1793870741261",
+          "title": "Eman",
+          "summary": "",
+          "content": "Hello",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:25:41.261Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793871624590",
+      "name": "He",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:40:24.590Z",
+      "lessons": [
+        {
+          "id": "les_1793871626457",
+          "title": "aea",
+          "summary": "",
+          "content": "<mark class=\"doc-highlight doc-highlight-amber\"><b>awfsafas</b>f</mark>",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:40:26.457Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793872341703",
+      "name": "Subject",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:52:21.703Z",
+      "lessons": []
+    },
+    {
+      "id": "sub_1793872345690",
+      "name": "Subject 1",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:52:25.690Z",
+      "lessons": []
+    },
+    {
+      "id": "sub_1793872348842",
+      "name": "Subject 2",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T09:52:28.842Z",
+      "lessons": [
+        {
+          "id": "les_1793872371140",
+          "title": "LEsson",
+          "summary": "",
+          "content": "<mark class=\"doc-highlight doc-highlight-coral\">afakfajkfas</mark><div>asf</div><div>as</div><div>fasfasfafsa</div><div>fa&nbsp;</div><div>asdasfsafassfas</div><div><br></div><div>asf</div><div>a</div><div>fas</div><div>fsa</div><div><br></div><div><br></div><div><br></div><div>as</div><div>f</div><div>as</div><div>f</div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div><div><br></div>",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T09:52:51.140Z"
+        }
+      ]
+    },
+    {
+      "id": "sub_1793872815819",
+      "name": "d",
+      "code": "",
+      "color": "#f4f4f5",
+      "createdAt": "2026-11-05T10:00:15.819Z",
+      "lessons": [
+        {
+          "id": "les_1793872817713",
+          "title": "d",
+          "summary": "",
+          "content": "<br>",
+          "status": "In Progress",
+          "images": [],
+          "createdAt": "2026-11-05T10:00:17.713Z"
+        }
+      ]
+    }
+  ],
+  "assignments": [],
+  "flashcardDecks": []
+}
