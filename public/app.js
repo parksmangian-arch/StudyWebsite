@@ -240,51 +240,79 @@ function showToast(message) {
 }
 
 // ==========================================================================
-// API CLIENT
+// API CLIENT & TWO-WAY CACHE RESILIENCE
 // ==========================================================================
-async function fetchStudyData() {
-  try {
-    const res = await fetch(`${API_BASE}/data`);
-    if (!res.ok) throw new Error('Failed to load server data');
-    const data = await res.json();
-    state.subjects = data.subjects || [];
-    state.assignments = data.assignments || [];
-    state.flashcardDecks = data.flashcardDecks || [];
-
-    // Ensure active subject is valid
-    if (!state.activeSubjectId && state.subjects.length > 0) {
-      state.activeSubjectId = state.subjects[0].id;
-    } else if (state.activeSubjectId && !state.subjects.find(s => s.id === state.activeSubjectId)) {
-      state.activeSubjectId = state.subjects.length > 0 ? state.subjects[0].id : null;
-    }
-
-    renderAll();
-  } catch (err) {
-    console.warn('API error, checking localStorage fallback:', err);
-    const cached = localStorage.getItem('study_space_cache');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        state.subjects = parsed.subjects || [];
-        state.assignments = parsed.assignments || [];
-        state.flashcardDecks = parsed.flashcardDecks || [];
-        if (!state.activeSubjectId && state.subjects.length > 0) {
-          state.activeSubjectId = state.subjects[0].id;
-        }
-        renderAll();
-      } catch (e) {}
-    }
-  }
-}
-
 function persistCache() {
   try {
     localStorage.setItem('study_space_cache', JSON.stringify({
       subjects: state.subjects,
       assignments: state.assignments,
-      flashcardDecks: state.flashcardDecks
+      flashcardDecks: state.flashcardDecks,
+      savedAt: Date.now()
     }));
   } catch (e) {}
+}
+
+async function fetchStudyData() {
+  // 1. Immediately load local cache so user's notes appear instantly with zero wipe
+  let localCache = null;
+  try {
+    const raw = localStorage.getItem('study_space_cache');
+    if (raw) localCache = JSON.parse(raw);
+  } catch (e) {}
+
+  if (localCache && Array.isArray(localCache.subjects) && localCache.subjects.length > 0) {
+    state.subjects = localCache.subjects;
+    state.assignments = localCache.assignments || [];
+    state.flashcardDecks = localCache.flashcardDecks || [];
+    if (!state.activeSubjectId && state.subjects.length > 0) {
+      state.activeSubjectId = state.subjects[0].id;
+    }
+    renderAll();
+  }
+
+  // 2. Fetch from server with cache-busting
+  try {
+    const res = await fetch(`${API_BASE}/data?_t=${Date.now()}`);
+    if (!res.ok) throw new Error('Failed to load server data');
+    const data = await res.json();
+
+    const serverSubjects = Array.isArray(data.subjects) ? data.subjects : [];
+
+    // If server has no subjects (e.g. fresh Railway container startup/sleep), but client has saved data:
+    if (localCache && Array.isArray(localCache.subjects) && localCache.subjects.length > 0 && serverSubjects.length === 0) {
+      console.log('Restoring data to server from local cache...');
+      try {
+        await fetch(`${API_BASE}/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subjects: localCache.subjects,
+            assignments: localCache.assignments || [],
+            flashcardDecks: localCache.flashcardDecks || []
+          })
+        });
+      } catch (syncErr) {}
+      return;
+    }
+
+    // Server has data: adopt server state
+    if (serverSubjects.length > 0 || !localCache) {
+      state.subjects = serverSubjects;
+      state.assignments = Array.isArray(data.assignments) ? data.assignments : [];
+      state.flashcardDecks = Array.isArray(data.flashcardDecks) ? data.flashcardDecks : [];
+
+      if (!state.activeSubjectId && state.subjects.length > 0) {
+        state.activeSubjectId = state.subjects[0].id;
+      } else if (state.activeSubjectId && !state.subjects.find(s => s.id === state.activeSubjectId)) {
+        state.activeSubjectId = state.subjects.length > 0 ? state.subjects[0].id : null;
+      }
+
+      renderAll();
+    }
+  } catch (err) {
+    console.warn('Server fetch error, using local storage cache:', err);
+  }
 }
 
 // ==========================================================================
@@ -723,6 +751,11 @@ async function performDocSave() {
   const newTitle = elements.docLessonTitle.value.trim() || 'Untitled Lesson';
   const newContent = elements.docPaper.innerHTML;
 
+  // Immediately store in memory and localStorage so refresh never wipes text
+  currentLesson.title = newTitle;
+  currentLesson.content = newContent;
+  persistCache();
+
   try {
     const res = await fetch(`${API_BASE}/lessons/${currentLesson.id}`, {
       method: 'PUT',
@@ -737,6 +770,7 @@ async function performDocSave() {
     const updated = await res.json();
     currentLesson.title = updated.title;
     currentLesson.content = updated.content;
+    persistCache();
 
     // Update tab text in UI
     const activeTab = elements.lessonTabsScroll.querySelector('.lesson-tab.active .lesson-tab-name');
@@ -1625,6 +1659,7 @@ elements.formAddLesson.addEventListener('submit', async (e) => {
     }
     
     state.activeLessonId = newLesson.id;
+    persistCache();
     closeAddLessonModal();
     renderSubjectWorkspace();
     

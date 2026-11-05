@@ -9,9 +9,10 @@ try { mammoth = require('mammoth'); } catch (e) { console.warn('mammoth optional
 try { AdmZip = require('adm-zip'); } catch (e) { console.warn('adm-zip optional load:', e.message); }
 
 let PORT = parseInt(process.env.PORT || '3500', 10);
-const DATA_FILE = path.join(__dirname, 'data', 'study-data.json');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DATA_FILE = path.join(DATA_DIR, 'study-data.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const UPLOADS_DIR = path.join(PUBLIC_DIR, 'uploads');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(PUBLIC_DIR, 'uploads');
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -33,86 +34,15 @@ const MIME_TYPES = {
 };
 
 // Ensure data folder exists
-const dataDir = path.dirname(DATA_FILE);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
 // Default initial state
 const defaultData = {
-  subjects: [
-    {
-      id: "sub_1",
-      name: "Computer Science",
-      code: "CS-101",
-      color: "#f4f4f5",
-      createdAt: new Date().toISOString(),
-      lessons: [
-        {
-          id: "les_1",
-          title: "Data Structures & Complexity",
-          summary: "Core algorithmic complexity, arrays, hash maps, and binary trees.",
-          content: "### Key Concepts\n- **O(1) Constant**: Instant access (hash tables, array lookup by index)\n- **O(log n) Logarithmic**: Binary search divide-and-conquer\n- **O(n) Linear**: Linear search / iteration\n- **O(n log n)**: Efficient sorting (Merge Sort, Quick Sort)\n\n### Review Items\n1. Prefer hash tables for O(1) lookups whenever extra memory is permissible.\n2. In balanced binary search trees, search and insert operations take O(log n).\n3. Keep algorithmic space complexity in mind alongside runtime.",
-          status: "In Progress",
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: "les_2",
-          title: "Asynchronous JavaScript & Event Loop",
-          summary: "Call stack, event loop, microtask queues, Promises, and async/await.",
-          content: "### Event Loop Mechanics\n- Call Stack processes synchronous execution frames.\n- Microtasks (Promise.then, queueMicrotask) run right after current tick.\n- Macrotasks (setTimeout, setInterval, I/O) execute in successive cycles.\n\n### Best Practice\nAlways handle async rejections and avoid blocking the single execution thread.",
-          status: "Completed",
-          createdAt: new Date().toISOString()
-        }
-      ]
-    },
-    {
-      id: "sub_2",
-      name: "Advanced Mathematics",
-      code: "MATH-201",
-      color: "#d4d4d8",
-      createdAt: new Date().toISOString(),
-      lessons: [
-        {
-          id: "les_3",
-          title: "Linear Transformations & Eigenvalues",
-          summary: "Matrix representations, determinants, eigenvectors, and spectral decomposition.",
-          content: "### Core Formula\nA · v = λ · v\n\n- A = Linear transformation matrix\n- v = Non-zero eigenvector\n- λ = Corresponding scalar eigenvalue\n\n### Practical Steps\n1. Calculate characteristic equation: det(A - λI) = 0\n2. Find basis for each eigenspace\n3. Check diagonalizability",
-          status: "Not Started",
-          createdAt: new Date().toISOString()
-        }
-      ]
-    }
-  ],
-  assignments: [
-    {
-      id: "asg_1",
-      subjectId: "sub_1",
-      title: "Implement a Min-Heap Priority Queue",
-      dueDate: "2026-11-08",
-      priority: "High",
-      completed: false,
-      notes: "Include unit tests for bubbleUp and bubbleDown methods."
-    },
-    {
-      id: "asg_2",
-      subjectId: "sub_2",
-      title: "Problem Set 4: Eigenvector Systems",
-      dueDate: "2026-11-10",
-      priority: "Medium",
-      completed: false,
-      notes: "Exercises 4.1 to 4.8 on page 142."
-    },
-    {
-      id: "asg_3",
-      subjectId: "sub_1",
-      title: "Node.js REST API Documentation",
-      dueDate: "2026-11-04",
-      priority: "Low",
-      completed: true,
-      notes: "Document routes, request bodies, and JSON responses."
-    }
-  ]
+  subjects: [],
+  assignments: [],
+  flashcardDecks: []
 };
 
 function readData() {
@@ -337,6 +267,9 @@ function parseJsonBody(req) {
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type'
@@ -367,6 +300,19 @@ const server = http.createServer(async (req, res) => {
       // GET /api/data
       if (pathname === '/api/data' && method === 'GET') {
         return sendJson(res, 200, data);
+      }
+
+      // POST /api/sync (Sync client state with server)
+      if (pathname === '/api/sync' && method === 'POST') {
+        const payload = await parseJsonBody(req);
+        if (payload && Array.isArray(payload.subjects)) {
+          data.subjects = payload.subjects;
+          if (Array.isArray(payload.assignments)) data.assignments = payload.assignments;
+          if (Array.isArray(payload.flashcardDecks)) data.flashcardDecks = payload.flashcardDecks;
+          writeData(data);
+          return sendJson(res, 200, { success: true, count: data.subjects.length });
+        }
+        return sendJson(res, 400, { error: 'Invalid sync payload' });
       }
 
       // POST /api/scan-file (Scan PDF, PPTX, DOCX, TXT for flashcards)
@@ -731,7 +677,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 function startListening(portToTry) {
-  server.listen(portToTry, () => {
+  server.listen(portToTry, '0.0.0.0', () => {
     console.log(`===============================================`);
     console.log(`  STUDY SPACE (Node.js) is running!`);
     console.log(`  Local URL: http://localhost:${portToTry}`);
