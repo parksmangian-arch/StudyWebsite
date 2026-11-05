@@ -42,24 +42,29 @@ if (!fs.existsSync(DATA_DIR)) {
 const defaultData = {
   subjects: [],
   assignments: [],
-  flashcardDecks: []
+  flashcardDecks: [],
+  lastUpdated: 0
 };
 
 function readData() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(defaultData, null, 2), 'utf-8');
-      return defaultData;
+      const initData = { ...defaultData, lastUpdated: 0 };
+      fs.writeFileSync(DATA_FILE, JSON.stringify(initData, null, 2), 'utf-8');
+      return initData;
     }
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.flashcardDecks)) {
       parsed.flashcardDecks = [];
     }
+    if (typeof parsed.lastUpdated !== 'number') {
+      parsed.lastUpdated = 0;
+    }
     return parsed;
   } catch (err) {
     console.error('Error reading study data, using default:', err);
-    return defaultData;
+    return { ...defaultData, lastUpdated: 0 };
   }
 }
 
@@ -234,6 +239,7 @@ async function extractTextFromFile(buffer, filename = '') {
 
 function writeData(data) {
   try {
+    data.lastUpdated = Date.now();
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
     return true;
   } catch (err) {
@@ -310,7 +316,7 @@ const server = http.createServer(async (req, res) => {
           if (Array.isArray(payload.assignments)) data.assignments = payload.assignments;
           if (Array.isArray(payload.flashcardDecks)) data.flashcardDecks = payload.flashcardDecks;
           writeData(data);
-          return sendJson(res, 200, { success: true, count: data.subjects.length });
+          return sendJson(res, 200, { success: true, count: data.subjects.length, lastUpdated: data.lastUpdated });
         }
         return sendJson(res, 400, { error: 'Invalid sync payload' });
       }

@@ -170,6 +170,13 @@ const elements = {
   timerResetBtn: document.getElementById('timerResetBtn'),
 
   // Modals
+  modalDataBackup: document.getElementById('modalDataBackup'),
+  btnOpenBackupModal: document.getElementById('btnOpenBackupModal'),
+  btnCloseBackupModal: document.getElementById('btnCloseBackupModal'),
+  btnExportDataBackup: document.getElementById('btnExportDataBackup'),
+  inputImportBackup: document.getElementById('inputImportBackup'),
+  btnForceSyncCloud: document.getElementById('btnForceSyncCloud'),
+
   modalAddSubject: document.getElementById('modalAddSubject'),
   formAddSubject: document.getElementById('formAddSubject'),
   btnCloseSubjectModal: document.getElementById('btnCloseSubjectModal'),
@@ -240,31 +247,39 @@ function showToast(message) {
 }
 
 // ==========================================================================
-// API CLIENT & TWO-WAY CACHE RESILIENCE
+// API CLIENT & TWO-WAY PERSISTENCE RESILIENCE
 // ==========================================================================
 function persistCache() {
   try {
+    const timestamp = Date.now();
     localStorage.setItem('study_space_cache', JSON.stringify({
       subjects: state.subjects,
       assignments: state.assignments,
       flashcardDecks: state.flashcardDecks,
-      savedAt: Date.now()
+      lastUpdated: timestamp,
+      savedAt: timestamp
     }));
-  } catch (e) {}
+  } catch (e) {
+    console.warn('localStorage persist warning:', e);
+  }
 }
 
 async function fetchStudyData() {
-  // 1. Immediately load local cache so user's notes appear instantly with zero wipe
+  // 1. Immediately restore local cache so notes appear instantly with ZERO delay or wipe
   let localCache = null;
   try {
     const raw = localStorage.getItem('study_space_cache');
     if (raw) localCache = JSON.parse(raw);
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Cache parse error:', e);
+  }
 
-  if (localCache && Array.isArray(localCache.subjects) && localCache.subjects.length > 0) {
+  const hasLocalData = localCache && Array.isArray(localCache.subjects) && localCache.subjects.length > 0;
+
+  if (hasLocalData) {
     state.subjects = localCache.subjects;
-    state.assignments = localCache.assignments || [];
-    state.flashcardDecks = localCache.flashcardDecks || [];
+    state.assignments = Array.isArray(localCache.assignments) ? localCache.assignments : [];
+    state.flashcardDecks = Array.isArray(localCache.flashcardDecks) ? localCache.flashcardDecks : [];
     if (!state.activeSubjectId && state.subjects.length > 0) {
       state.activeSubjectId = state.subjects[0].id;
     }
@@ -278,10 +293,13 @@ async function fetchStudyData() {
     const data = await res.json();
 
     const serverSubjects = Array.isArray(data.subjects) ? data.subjects : [];
+    const serverTimestamp = Number(data.lastUpdated) || 0;
+    const clientTimestamp = Number((localCache && (localCache.lastUpdated || localCache.savedAt))) || 0;
 
-    // If server has no subjects (e.g. fresh Railway container startup/sleep), but client has saved data:
-    if (localCache && Array.isArray(localCache.subjects) && localCache.subjects.length > 0 && serverSubjects.length === 0) {
-      console.log('Restoring data to server from local cache...');
+    // CASE 1: Client has local notes and is either newer/equal to server,
+    // OR server is empty/reset (e.g. Railway container restart)
+    if (hasLocalData && (clientTimestamp >= serverTimestamp || serverSubjects.length === 0)) {
+      console.log('Client local data is authoritative. Syncing to server...');
       try {
         await fetch(`${API_BASE}/sync`, {
           method: 'POST',
@@ -292,12 +310,14 @@ async function fetchStudyData() {
             flashcardDecks: localCache.flashcardDecks || []
           })
         });
-      } catch (syncErr) {}
+      } catch (syncErr) {
+        console.warn('Background sync failed, keeping local notes:', syncErr);
+      }
       return;
     }
 
-    // Server has data: adopt server state
-    if (serverSubjects.length > 0 || !localCache) {
+    // CASE 2: Server has strictly newer data (e.g. edited on another computer), or client had no cache
+    if (serverSubjects.length > 0 || !hasLocalData) {
       state.subjects = serverSubjects;
       state.assignments = Array.isArray(data.assignments) ? data.assignments : [];
       state.flashcardDecks = Array.isArray(data.flashcardDecks) ? data.flashcardDecks : [];
@@ -311,7 +331,71 @@ async function fetchStudyData() {
       renderAll();
     }
   } catch (err) {
-    console.warn('Server fetch error, using local storage cache:', err);
+    console.warn('Server fetch error, keeping local storage copy intact:', err);
+  }
+}
+
+// Export entire notebook to a downloadable .json file
+function exportNotebookBackup() {
+  const exportPayload = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    subjects: state.subjects,
+    assignments: state.assignments,
+    flashcardDecks: state.flashcardDecks
+  };
+
+  const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `study-space-backup-${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Notebook backup downloaded successfully');
+}
+
+// Restore entire notebook from a selected .json backup file
+async function importNotebookBackup(file) {
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const imported = JSON.parse(text);
+
+    if (!Array.isArray(imported.subjects)) {
+      throw new Error('Invalid backup file: missing subjects array');
+    }
+
+    state.subjects = imported.subjects;
+    state.assignments = Array.isArray(imported.assignments) ? imported.assignments : [];
+    state.flashcardDecks = Array.isArray(imported.flashcardDecks) ? imported.flashcardDecks : [];
+    state.activeSubjectId = state.subjects.length > 0 ? state.subjects[0].id : null;
+    state.activeLessonId = null;
+
+    persistCache();
+    renderAll();
+
+    // Sync to server
+    try {
+      await fetch(`${API_BASE}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjects: state.subjects,
+          assignments: state.assignments,
+          flashcardDecks: state.flashcardDecks
+        })
+      });
+    } catch (e) {}
+
+    showToast(`Restored ${state.subjects.length} subjects from backup!`);
+    if (elements.modalDataBackup) elements.modalDataBackup.classList.add('hidden');
+  } catch (err) {
+    console.error('Backup import error:', err);
+    alert('Failed to import backup: ' + err.message);
   }
 }
 
@@ -361,6 +445,7 @@ function renderSubjectsBar() {
       ${subject.code ? `<span class="subject-code-tag">${escapeHtml(subject.code)}</span>` : ''}
     `;
     chip.addEventListener('click', () => {
+      flushDocAutoSave();
       state.activeSubjectId = subject.id;
       renderSubjectsBar();
       renderSubjectWorkspace();
@@ -3246,6 +3331,82 @@ function renderMarkdown(md) {
     return `<p>${p.replace(/\n/g, '<br>')}</p>`;
   }).join('');
 }
+
+// ==========================================================================
+// BACKUP & PERSISTENCE EVENT LISTENERS
+// ==========================================================================
+if (elements.btnOpenBackupModal) {
+  elements.btnOpenBackupModal.addEventListener('click', () => {
+    elements.modalDataBackup.classList.remove('hidden');
+  });
+}
+
+if (elements.btnCloseBackupModal) {
+  elements.btnCloseBackupModal.addEventListener('click', () => {
+    elements.modalDataBackup.classList.add('hidden');
+  });
+}
+
+if (elements.modalDataBackup) {
+  elements.modalDataBackup.addEventListener('click', (e) => {
+    if (e.target === elements.modalDataBackup) {
+      elements.modalDataBackup.classList.add('hidden');
+    }
+  });
+}
+
+if (elements.btnExportDataBackup) {
+  elements.btnExportDataBackup.addEventListener('click', () => {
+    exportNotebookBackup();
+  });
+}
+
+if (elements.inputImportBackup) {
+  elements.inputImportBackup.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      importNotebookBackup(file);
+      e.target.value = '';
+    }
+  });
+}
+
+if (elements.btnForceSyncCloud) {
+  elements.btnForceSyncCloud.addEventListener('click', async () => {
+    try {
+      showToast('Syncing with server...');
+      const res = await fetch(`${API_BASE}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjects: state.subjects,
+          assignments: state.assignments,
+          flashcardDecks: state.flashcardDecks
+        })
+      });
+      if (res.ok) {
+        showToast('Successfully synced to cloud!');
+      } else {
+        throw new Error('Sync returned status ' + res.status);
+      }
+    } catch (e) {
+      showToast('Cloud sync failed: ' + e.message);
+    }
+  });
+}
+
+// Emergency flush on refresh, tab close, or tab switch
+window.addEventListener('beforeunload', () => {
+  flushDocAutoSave();
+});
+window.addEventListener('pagehide', () => {
+  flushDocAutoSave();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    flushDocAutoSave();
+  }
+});
 
 // ==========================================================================
 // INITIALIZATION
